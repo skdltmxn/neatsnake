@@ -128,7 +128,6 @@ class Neat:
         self._species = survived
 
     def next_generation(self):
-        self.save(Neat.save_path)
 
         self._remove_stale_species()
         self._global_ranking()
@@ -166,6 +165,9 @@ class Neat:
 
         self._current_network = 0
         self._generation += 1
+
+        self.save(Neat.save_path)
+
 
     def next(self):
         self._current_network += 1

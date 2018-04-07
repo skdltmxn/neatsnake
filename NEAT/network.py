@@ -88,7 +88,7 @@ class Network:
         }
         '''
 
-        network = Network(obj['input'], obj['output'])
+        network = Network(obj['input'], obj['output'], [])
         network._fitness = obj['fitness']
         network._mutation_rate = obj['mutation_rate']
         network._max_neurons = obj['max_neurons']
@@ -96,8 +96,6 @@ class Network:
 
         for gene in obj['genes']:
             network._genes.append(Gene.from_json(gene))
-
-        #print(len(network._genes))
 
         for i, neuron in obj['neurons'].items():
             network._neurons[i] = Neuron.from_json(neuron)
