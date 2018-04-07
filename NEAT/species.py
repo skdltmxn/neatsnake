@@ -11,8 +11,33 @@ class Species:
         self._adjust_fitness = 0
         self._stale_count = 0
 
+    @staticmethod
+    def from_json(obj):
+        species = Species()
+        species._max_fitness = obj['max_fitness']
+        species._adjust_fitness = obj['adjust_fitness']
+        species._stale_count = obj['stale_count']
+
+        for network in obj['networks']:
+            species._networks.append(Network.from_json(network))
+
+        return species
+
+    def to_json(self):
+        obj = {
+            'max_fitness': self._max_fitness,
+            'adjust_fitness': self._adjust_fitness,
+            'stale_count': self._stale_count,
+            'networks': [],
+        }
+
+        for network in self._networks:
+            obj['networks'].append(network.to_json())
+
+        return obj
+
     def add_stale_count(self):
-        self._stale_count += 0
+        self._stale_count += 1
         return self._stale_count
 
     def max_fitness(self):
@@ -32,12 +57,14 @@ class Species:
     def calculate_adjust_fitness(self):
         sum = 0
         for network in self._networks:
-            sum += network.fitness()
+            sum += network.ranking()
 
-        return sum / len(self._networks)
+        self._adjust_fitness = sum / len(self._networks)
+
+        return self._adjust_fitness
 
     def make_child(self):
-        if np.random.rand() < CROSSOVER_RATE:
+        if len(self._networks) > 1 and np.random.rand() < CROSSOVER_RATE:
             mom = self.fetch_random_network()
             dad = self.fetch_random_network()
 
@@ -47,7 +74,6 @@ class Species:
             child = Network.copy(n)
 
         child.mutate()
-
         return child
 
     def num_networks(self):
@@ -56,6 +82,9 @@ class Species:
     def network(self, idx):
         assert idx < len(self._networks)
         return self._networks[idx]
+
+    def networks(self):
+        return self._networks
 
     def remove_lower(self, remaining):
         if remaining == 0:

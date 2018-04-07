@@ -10,9 +10,30 @@ class Neuron:
         self._bias = np.random.rand()
         self._incoming = []
 
-    # @staticmethod
-    # def create():
-    #     return Neuron()
+    @staticmethod
+    def from_json(obj):
+        neuron = Neuron()
+        neuron._value = obj['value']
+        neuron._resolved = obj['resolved']
+        neuron._bias = obj['bias']
+
+        for gene in obj['incoming']:
+            neuron._incoming.append(Gene.from_json(gene))
+
+        return neuron
+
+    def to_json(self):
+        obj = {
+            'value': self._value,
+            'resolved': self._resolved,
+            'bias': self._bias,
+            'incoming': [],
+        }
+
+        for gene in self._incoming:
+            obj['incoming'].append(gene.to_json())
+
+        return obj
 
     def bias(self):
         return self._bias
@@ -37,8 +58,8 @@ class Network:
     def __init__(self, input, output, genes=[]):
         self._fitness = 0
         self._genes = genes
-        self._input_size = input
-        self._output_size = output
+        self._input = input
+        self._output = output
         self._mutation_rate = {
             'MUTATE_WEIGHT': 0.5,
             'PERTURB': 0.9,
@@ -49,20 +70,72 @@ class Network:
             'DISABLE': 0.4,
         }
         self._max_neurons = input + output
-        self._generated = False
         self._neurons = {}
+        self._ranking = 0
 
     @staticmethod
-    def create_random(input_len, output_len):
-        # input = []
-        # for _ in range(input_len):
-        #     input.append(Neuron.create('in'))
-        #
-        # output = []
-        # for _ in range(output_len):
-        #     output.append(Neuron.create('out'))
+    def from_json(obj):
+        '''
+        obj = {
+            'fitness': self._fitness,
+            'genes': [],
+            'input': self._input,
+            'output': self._output,
+            'mutation_rate': self._mutation_rate,
+            'max_neurons': self._max_neurons,
+            'ranking': self._ranking
+            'neurons': {},
+        }
+        '''
 
-        return Network(input=input_len, output=output_len, genes=[])
+        network = Network(obj['input'], obj['output'])
+        network._fitness = obj['fitness']
+        network._mutation_rate = obj['mutation_rate']
+        network._max_neurons = obj['max_neurons']
+        network._ranking = obj['ranking']
+
+        for gene in obj['genes']:
+            network._genes.append(Gene.from_json(gene))
+
+        #print(len(network._genes))
+
+        for i, neuron in obj['neurons'].items():
+            network._neurons[i] = Neuron.from_json(neuron)
+
+        return network
+
+    def to_json(self):
+        obj = {
+            'fitness': self._fitness,
+            'genes': [],
+            'input': self._input,
+            'output': self._output,
+            'mutation_rate': self._mutation_rate,
+            'max_neurons': self._max_neurons,
+            'ranking': self._ranking,
+            'neurons': {},
+        }
+
+        #print(len(self._genes))
+        for gene in self._genes:
+            obj['genes'].append(gene.to_json())
+
+        for i, neuron in self._neurons.items():
+            obj['neurons'][i] = neuron.to_json()
+
+        return obj
+
+    @staticmethod
+    def create_basic(input_len, output_len):
+        network = Network(input=input_len, output=output_len, genes=[])
+
+        # for out in range(output_len):
+        #     for into in range(input_len):
+        #         if np.random.rand() < 0.5:
+        #             gene = Gene.create(into, out)
+        #             network._genes.append(gene)
+
+        return network
 
     @staticmethod
     def copy(network):
@@ -70,7 +143,7 @@ class Network:
         for gene in network._genes:
             new_gene.append(Gene.copy(gene, new=False))
 
-        new = Network(genes=new_gene)
+        new = Network(input=network._input, output=network._output, genes=new_gene)
         new._mutation_rate = network._mutation_rate.copy()
         new._max_neurons = network._max_neurons
 
@@ -95,30 +168,30 @@ class Network:
 
         for mom_gene in mom_genes:
             # same innovation
-            if gene.innovation() in dad_inn:
-                dad_gene = dad_inn[gene.innovation()]
+            if mom_gene.innovation() in dad_inn:
+                dad_gene = dad_inn[mom_gene.innovation()]
 
                 # same fitness -> random parent
                 if mom.fitness() == dad.fitness():
                     if np.random.rand() < 0.5:
-                        child_genes.append(mom_gene)
+                        child_genes.append(Gene.copy(mom_gene, new=False))
                     else:
-                        child_genes.append(dad_gene)
+                        child_genes.append(Gene.copy(dad_gene, new=False))
                 # fitter parent = mom
                 else:
-                    child_genes.append(mom_gene)
+                    child_genes.append(Gene.copy(mom_gene, new=False))
             # disjoints or excess
             else:
-                child_genes.append(mom_gene)
+                child_genes.append(Gene.copy(mom_gene, new=False))
 
-        child = Network(genes=child_genes)
+        child = Network(input=mom._input, output=mom._output, genes=child_genes)
         child._max_neurons = max(mom._max_neurons, dad._max_neurons)
 
         return child
 
     def _generate(self):
-        in_len = self._input_size
-        out_len = self._output_size
+        in_len = self._input
+        out_len = self._output
 
         # input neurons
         for i in range(in_len):
@@ -149,48 +222,56 @@ class Network:
     def fitness(self):
         return self._fitness
 
+    def add_fitness(self, fitness):
+        self._fitness += fitness
+
     def genes(self):
         return self._genes
+
+    def ranking(self):
+        return self._ranking
+
+    def set_ranking(self, rank):
+        self._ranking = rank
 
     def _random_neuron(self, non_input=False):
         nl = self._max_neurons
         if non_input:
-            return np.random.randint(self._input_size, nl)
+            return np.random.randint(self._input, nl)
         else:
             return np.random.randint(nl)
 
+    # change gene weight
     def mutate_weight(self, perturb_prob):
         for gene in self._genes:
             if np.random.rand() < perturb_prob:
                 new_w = gene.w() + np.random.rand() * self._mutation_rate['PERTURB_BIAS'] * (-1 if np.random.rand() < 0.5 else 1)
                 gene.set_w(new_w)
             else:
-                gene.set_w(np.random.rand())
+                gene.set_w(np.random.rand() * 2 - 1)
 
+    # add a new gene
     def mutate_gene(self):
-        while True:
-            n1 = self._random_neuron(False)
-            n2 = self._random_neuron(True)
+        n1 = self._random_neuron(False)
+        n2 = self._random_neuron(True)
 
-            if n1 != n2 and not self._gene_exists(n1, n2):
-                break
+        if n1 == n2 or self._gene_exists(n1, n2):
+            return
 
         gene = Gene.create(n1, n2)
         self._genes.append(gene)
 
+    # add new neuron
     def mutate_neuron(self):
         if len(self._genes) == 0:
             return
 
-        #n = Neuron.create_random('hidden')
-        #self.neurons.append(n)
+        gene = self._genes[np.random.randint(len(self._genes))]
 
-        while True:
-            gene = self._genes[np.random.randint(len(self._genes))]
+        if not gene.enabled():
+            return
 
-            if gene.enabled():
-                gene.set_enable(False)
-                break
+        self._max_neurons += 1
 
         g1 = Gene.copy(gene)
         g1.set_w(1.0)
@@ -198,42 +279,65 @@ class Network:
         g2 = Gene.copy(gene)
         g2.set_into(self._max_neurons)
 
-        self._max_neurons += 1
         self._genes += [g1, g2]
 
+    def mutate_enable(self, enable):
+        candidates = []
+
+        for gene in self._genes:
+            if gene.enabled() != enable:
+                candidates.append(gene)
+
+        if len(candidates) > 0:
+            candidates[np.random.randint(len(candidates))].set_enable(enable)
+
     def mutate(self):
-        for key, val in self._mutation_rate.items():
-            if np.random.rand() < 0.5:
-                self._mutation_rate[key] = val * 0.95
-            else:
-                self._mutation_rate[key] = val * 1.05263
+        # for key, val in self._mutation_rate.items():
+        #     if np.random.rand() < 0.5:
+        #         self._mutation_rate[key] = val * 0.95
+        #     else:
+        #         self._mutation_rate[key] = val * 1.05263
+        #
+        #     print(key, val)
 
         if np.random.rand() < self._mutation_rate['MUTATE_WEIGHT']:
             self.mutate_weight(self._mutation_rate['PERTURB'])
 
         if np.random.rand() < self._mutation_rate['MUTATE_GENE']:
-            self.mutate_gene()
+            for _ in range(4):
+                self.mutate_gene()
 
         if np.random.rand() < self._mutation_rate['MUTATE_NEURON']:
-            self.mutate_neuron()
+            for _ in range(2):
+                self.mutate_neuron()
+
+        if np.random.rand() < self._mutation_rate['ENABLE']:
+            self.mutate_enable(True)
+
+        if np.random.rand() < self._mutation_rate['DISABLE']:
+            self.mutate_enable(False)
+
+        # print(self._max_neurons, len(self._genes))
 
     def evaluate(self, input):
-        if not self._generated:
-            self._generate()
-            self._generated = True
+        self._generate()
 
-        in_len = self._input_size
-        out_len = self._output_size
+        in_len = self._input
+        out_len = self._output
         neurons = self._neurons
 
-        def resolve_neuron(neuron):
+        def resolve_neuron(neuron, visited):
             sum = 0.0
             for incoming in neuron.incoming():
                 other = neurons[incoming.into()]
+
                 if other.resolved():
                     other_val = other.value()
                 else:
-                    other_val = resolve_neuron(other)
+                    if other in visited:
+                        other_val = 0.0
+                    else:
+                        other_val = resolve_neuron(other, visited + [neuron])
 
                 sum += other_val * incoming.w() + other.bias()
 
@@ -249,7 +353,8 @@ class Network:
         max_output, max_value = 0, -9999
         # recursively resolve output neurons
         for i in range(in_len, in_len + out_len):
-            val = resolve_neuron(neurons[i])
+            val = resolve_neuron(neurons[i], [])
+
             if val > max_value:
                 max_output, max_value = i, val
 

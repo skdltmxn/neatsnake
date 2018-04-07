@@ -11,6 +11,25 @@ class Gene:
         self._innovation = innovation
 
     @staticmethod
+    def from_json(obj):
+        return Gene(
+            obj['into'],
+            obj['out'],
+            obj['w'],
+            obj['enable'],
+            obj['innovation']
+        )
+
+    def to_json(self):
+        return {
+            'into': self._into,
+            'out': self._out,
+            'w': self._w,
+            'enable': self._enable,
+            'innovation': self._innovation,
+        }
+
+    @staticmethod
     def create(into, out):
         return Gene(into, out, np.random.rand() * 2 - 1, True, Neat.new_innovation())
 
@@ -20,7 +39,7 @@ class Gene:
             gene = Gene(src._into, src._out, src._w, src._enable, Neat.new_innovation())
         else:
             gene = Gene(src._into, src._out, src._w, src._enable, src.innovation())
-            
+
         return gene
 
     def w(self):
@@ -52,16 +71,5 @@ class Gene:
 
     def link(self):
         return (self._into, self._out)
-
-# class Genome:
-#     def __init__(self):
-#         self.genes = []
-#         self.network = {}
-#
-#     def add(self, gene):
-#         self.genes.append(gene)
-#
-#     def evaluate(self):
-#         pass
 
 from .neat import *

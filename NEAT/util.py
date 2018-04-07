@@ -9,7 +9,7 @@ C3 = 0.4
 
 # 2.5 - crAIg
 # 1.0 - marI/O
-THRESHOLD = 1.7
+THRESHOLD = 2.0
 
 def disjoints(genes1, genes2):
     s1 = set()

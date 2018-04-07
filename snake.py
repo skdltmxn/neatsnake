@@ -1,6 +1,7 @@
 from tkinter import *
 from random import randint
 from NEAT.neat import *
+from math import sqrt
 
 # constants that go in the making of the grid used for the snake's movment
 GRADUATION = 40
@@ -27,11 +28,11 @@ DOWN = 'Down'
 RIGHT = 'Right'
 LEFT = 'Left'
 # a dictionary to ease access to 'directions'
-DIRECTIONS = {UP: [0, -1], DOWN: [0, 1], RIGHT: [1, 0], LEFT: [-1, 0]}
-AXES = {UP: 'Vertical', DOWN: 'Vertical', RIGHT: 'Horizontal', LEFT: 'Horizontal'}
+DIRECTIONS = {0: [0, -1], 1: [0, 1], 2: [1, 0], 3: [-1, 0]}
+AXES = {0: 'Vertical', 1: 'Vertical', 2: 'Horizontal', 3: 'Horizontal'}
 DIRECTION_CONVERT = {0: UP, 1: DOWN, 2: RIGHT, 3: LEFT}
 # refresh time for the perpetual motion
-REFRESH_TIME = 100
+REFRESH_TIME = 10
 
 
 class Master(Canvas):
@@ -46,10 +47,12 @@ class Master(Canvas):
         self.current = None
         self.score = Scores(boss)
         self.neat = Neat(input_size=STEP * STEP, output_size=4)
+        self.neat.load()
         self.generation = StringVar(self, '0')
         self.species = StringVar(self, '0')
         self.network = StringVar(self, '0')
         self.fitness = StringVar(self, '0')
+        self.max_fitness = StringVar(self, '0')
 
     def start(self):
         """start snake game"""
@@ -57,13 +60,13 @@ class Master(Canvas):
             self.snake = Snake(self)
             self.obstacle = Obstacle(self)
             self.direction = RIGHT
-            self.current = Movement(self, RIGHT) # TODO: random move
+            self.current = Movement(self, randint(0, 3))
             self.current.begin()
             self.running = 1
-            self.neat.next()
             self.generation.set(self.neat.generation())
             self.species.set(self.neat.current_species())
             self.network.set(self.neat.current_network())
+            self.fitness.set('0')
 
     def clean(self):
         """restarting the game"""
@@ -75,6 +78,8 @@ class Master(Canvas):
             for block in self.snake.blocks:
                 block.delete()
 
+            self.neat.next()
+
     def redirect(self, event):
         """taking keyboard inputs and moving the snake accordingly"""
         if 1 == self.running and \
@@ -85,17 +90,23 @@ class Master(Canvas):
             self.current = Movement(self, event.keysym)  # a new instance at each turn to avoid confusion/tricking
             self.current.begin()  # program gets tricked if the user presses two arrow keys really quickly
 
+    '''
+        1: empty space
+        2: snake body
+        3: apple
+    '''
     def map(self):
-        tile = [0 for _ in range(STEP * STEP)]
+        tile = [1 for _ in range(STEP * STEP)]
 
         for block in self.snake.blocks:
             x = (block.x - 10) // STEP
             y = (block.y - 10) // STEP
-            tile[y * STEP + x] = 1
+            tile[y * STEP + x] = 2
 
         x = (self.obstacle.x - 10) // STEP
         y = (self.obstacle.y - 10) // STEP
-        tile[y * STEP + x] = 2
+        tile[y * STEP + x] = 3
+
         return tile
 
 class Scores:
@@ -173,21 +184,46 @@ class Snake:
 
     def move(self, path):
         """an elementary step consisting of putting the tail of the snake in the first position"""
-        a = self.blocks[-1].x + STEP * path[0]# % WD
-        b = self.blocks[-1].y + STEP * path[1]# % HT
-        if a < 0 or a > WD or b < 0 or b > HT:
+        old_x = self.blocks[-1].x
+        old_y = self.blocks[-1].y
+        new_x = old_x + STEP * path[0]# % WD
+        new_y = old_y + STEP * path[1]# % HT
+
+        if new_x < 0 or new_x > WD or new_y < 0 or new_y > HT:
             self.can.clean()
             self.can.start()
-        elif a == self.can.obstacle.x and b == self.can.obstacle.y:  # check if we find food
+        elif new_x == self.can.obstacle.x and new_y == self.can.obstacle.y:  # check if we find food
             self.can.score.increment()
             self.can.obstacle.delete()
-            self.blocks.append(Block(self.can, a, b))
+            self.blocks.append(Block(self.can, new_x, new_y))
             self.can.obstacle = Obstacle(self.can)
-        elif [a, b] in [[block.x, block.y] for block in self.blocks]:  # check if we hit a body part
+            # +100 pts for finding food
+            fitness = self.can.neat.add_fitness(100)
+            self.can.fitness.set(fitness)
+            if fitness > int(self.can.max_fitness.get()):
+                self.can.max_fitness.set(fitness)
+
+        elif [new_x, new_y] in [[block.x, block.y] for block in self.blocks]:  # check if we hit a body part
             self.can.clean()
             self.can.start()
         else:
-            self.blocks[0].modify(a, b)
+            def distance(x1, y1, x2, y2):
+                return sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+            old_dist = distance(old_x, old_y, self.can.obstacle.x, self.can.obstacle.y)
+            new_dist = distance(new_x, new_y, self.can.obstacle.x, self.can.obstacle.y)
+
+            # got further from food => penalty
+            if old_dist < new_dist:
+                fitness = self.can.neat.add_fitness(-1)
+            else:
+                fitness = self.can.neat.add_fitness(2)
+
+            self.can.fitness.set(fitness)
+            if fitness > int(self.can.max_fitness.get()):
+                self.can.max_fitness.set(fitness)
+
+            self.blocks[0].modify(new_x, new_y)
             self.blocks = self.blocks[1:] + [self.blocks[0]]
 
 
@@ -202,9 +238,11 @@ class Movement:
         """start the perpetual motion"""
         if self.flag > 0:
             map = self.can.map()
-            direction = DIRECTION_CONVERT[self.can.neat.evaluate(map)]
+            direction = self.can.neat.evaluate(map)
 
-            if direction in AXES.keys() and AXES[direction] != AXES[self.direction]:
+            if self.direction != direction and \
+                direction in AXES.keys() and \
+                AXES[direction] != AXES[self.direction]:
                 self.direction = direction
 
             self.can.snake.move(DIRECTIONS[self.direction])
@@ -233,9 +271,8 @@ Label(scoreboard, text='Network').grid()
 Label(scoreboard, textvariable=game.network).grid()
 Label(scoreboard, text='Fitness').grid()
 Label(scoreboard, textvariable=game.fitness).grid()
-
-Label(scoreboard, text='Game Score').grid()
-Label(scoreboard, textvariable=game.score.counter).grid()
+Label(scoreboard, text='Max Fitness').grid()
+Label(scoreboard, textvariable=game.max_fitness).grid()
 Label(scoreboard, text='High Score').grid()
 Label(scoreboard, textvariable=game.score.maximum).grid()
 scoreboard.grid(column=0, row=2)
