@@ -29,6 +29,7 @@ LEFT = 'Left'
 # a dictionary to ease access to 'directions'
 DIRECTIONS = {UP: [0, -1], DOWN: [0, 1], RIGHT: [1, 0], LEFT: [-1, 0]}
 AXES = {UP: 'Vertical', DOWN: 'Vertical', RIGHT: 'Horizontal', LEFT: 'Horizontal'}
+DIRECTION_CONVERT = {0: UP, 1: DOWN, 2: RIGHT, 3: LEFT}
 # refresh time for the perpetual motion
 REFRESH_TIME = 100
 
@@ -84,6 +85,18 @@ class Master(Canvas):
             self.current = Movement(self, event.keysym)  # a new instance at each turn to avoid confusion/tricking
             self.current.begin()  # program gets tricked if the user presses two arrow keys really quickly
 
+    def map(self):
+        tile = [0 for _ in range(STEP * STEP)]
+
+        for block in self.snake.blocks:
+            x = (block.x - 10) // STEP
+            y = (block.y - 10) // STEP
+            tile[y * STEP + x] = 1
+
+        x = (self.obstacle.x - 10) // STEP
+        y = (self.obstacle.y - 10) // STEP
+        tile[y * STEP + x] = 2
+        return tile
 
 class Scores:
     """Objects that keep track of the score and high score"""
@@ -156,7 +169,7 @@ class Snake:
         """initial position chosen by me"""
         self.can = can
         a = PIXEL + 2 * int(GRADUATION/4) * PIXEL
-        self.blocks = [Block(can, a, a), Block(can, a, a + STEP)]
+        self.blocks = [Block(can, a, a)]
 
     def move(self, path):
         """an elementary step consisting of putting the tail of the snake in the first position"""
@@ -188,7 +201,12 @@ class Movement:
     def begin(self):
         """start the perpetual motion"""
         if self.flag > 0:
-            #direction = self.can.neat.evaluate()
+            map = self.can.map()
+            direction = DIRECTION_CONVERT[self.can.neat.evaluate(map)]
+
+            if direction in AXES.keys() and AXES[direction] != AXES[self.direction]:
+                self.direction = direction
+
             self.can.snake.move(DIRECTIONS[self.direction])
             self.can.after(REFRESH_TIME, self.begin)
 
@@ -200,7 +218,7 @@ root = Tk()
 root.title("Snake Game")
 game = Master(root)
 game.grid(column=1, row=0, rowspan=3)
-root.bind("<Key>", game.redirect)
+#root.bind("<Key>", game.redirect)
 buttons = Frame(root, width=35, height=2*HT/5)
 Button(buttons, text='Start', command=game.start).grid()
 Button(buttons, text='Stop', command=game.clean).grid()

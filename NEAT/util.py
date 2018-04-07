@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from math import exp
+
 # 1, 1, 0.4 - crAIg
 # 2, 2, 0.4 - marI/O
 C1 = 1.5
@@ -52,5 +54,8 @@ def is_same_species(network1, network2):
     d = distance(network1.genes(), network2.genes())
     #print(d)
     return d < THRESHOLD
+
+def sigmoid(x):
+    return 1 / (1 + exp(-4.9 * x))
 
 from .gene import *

@@ -34,7 +34,6 @@ class Species:
         for network in self._networks:
             sum += network.fitness()
 
-        print(self._networks)
         return sum / len(self._networks)
 
     def make_child(self):

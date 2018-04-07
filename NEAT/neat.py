@@ -5,7 +5,7 @@ import math
 class Neat:
     innovation = 0
 
-    def __init__(self, population=5, input_size=400, output_size=4):
+    def __init__(self, population=50, input_size=400, output_size=4):
         #self.pool = Pool(population)
         self._population = population
         self._species = []
@@ -82,7 +82,7 @@ class Neat:
                 self.next_generation()
                 self._current_species = 0
 
-        print(self._current_network, self._current_species)
+        #print(self._current_network, self._current_species)
 
     def generation(self):
         return self._generation
@@ -98,11 +98,11 @@ class Neat:
         Neat.innovation += 1
         return Neat.innovation
 
-    def evaluate(self):
-        species = self.species[self._current_species]
-        network = species.get_network(self._current_network)
+    def evaluate(self, input):
+        species = self._species[self._current_species]
+        network = species.network(self._current_network)
 
-        return network.evaluate()
+        return network.evaluate(input)
 
 from .network import *
 from .species import *
