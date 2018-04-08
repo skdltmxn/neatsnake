@@ -7,7 +7,7 @@ class Neuron:
     def __init__(self):
         self._value = 0.0
         self._resolved = False
-        self._bias = np.random.rand() * 0.2 - 0.1
+        self._bias = np.random.rand() - 0.5
         self._incoming = []
 
     @staticmethod
@@ -36,6 +36,7 @@ class Neuron:
         return obj
 
     def reset(self):
+        self._value = 0.0
         self._resolved = False
 
     def bias(self):
@@ -338,8 +339,7 @@ class Network:
         # print(self._max_neurons, len(self._genes))
 
     def evaluate(self, input):
-        for _, neuron in self._neurons.items():
-            neuron.reset()
+        self.generate()
 
         in_len = self._input
         out_len = self._output

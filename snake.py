@@ -48,7 +48,7 @@ class Master(Canvas):
         self.direction = None
         self.current = None
         self.score = Scores(boss)
-        self.neat = Neat(input_size=5 * 5 + 1, output_size=3, save_path='./save')
+        self.neat = Neat(input_size=3 * 3 + 1, output_size=3, save_path='./save')
         self.neat.load()
         self.generation = StringVar(self, '0')
         self.species = StringVar(self, '0')
@@ -114,15 +114,15 @@ class Master(Canvas):
 
     # get 3x3 sight around given x, y
     def sight(self, x, y):
-        sight = [1 for _ in range(5 * 5 + 1)]
+        sight = [1 for _ in range(3 * 3 + 1)]
 
-        for dx in range(-2, 3):
-            for dy in range(-2, 3):
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
                 xx = x + dx
                 yy = y + dy
 
                 if xx < 0 or xx >= STEP or yy < 0 or yy >= STEP:
-                    sight[(dy + 1) * 5 + (dx + 1)] = -1
+                    sight[(dy + 1) * 3 + (dx + 1)] = -1
                 else:
                     # check if we see snake body
                     for block in self.snake.blocks:
@@ -130,14 +130,14 @@ class Master(Canvas):
                         snake_y = (block.y - 10) // STEP
 
                         if xx == snake_x and yy == snake_y:
-                            sight[(dy + 1) * 5 + (dx + 1)] = -1
+                            sight[(dy + 1) * 3 + (dx + 1)] = -1
 
                     # check if we see food
                     food_x = (self.obstacle.x - 10) // STEP
                     food_y = (self.obstacle.y - 10) // STEP
 
                     if xx == food_x and yy == food_y:
-                        sight[(dy + 1) * 5 + (dx + 1)] = 1
+                        sight[(dy + 1) * 3 + (dx + 1)] = 2
 
         return sight
 
@@ -288,35 +288,35 @@ class Movement:
             # UP
             if self.direction == 0:
                 if food_x < x:
-                    sight[9] = -1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = -1
                 elif food_x == x:
                     sight[9] = 0
                 else:
-                    sight[9] = 1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = 1
             # DOWN
             elif self.direction == 1:
                 if food_x < x:
-                    sight[9] = 1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = 1
                 elif food_x == x:
                     sight[9] = 0
                 else:
-                    sight[9] = -1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = -1
             # RIGHT
             elif self.direction == 2:
                 if food_y < y:
-                    sight[9] = -1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = -1
                 elif food_y == y:
                     sight[9] = 0
                 else:
-                    sight[9] = 1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = 1
             # LEFT
             elif self.direction == 3:
                 if food_y < y:
-                    sight[9] = 1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = 1
                 elif food_y == y:
                     sight[9] = 0
                 else:
-                    sight[9] = -1 * (np.random.rand() * 0.4 - 0.2)
+                    sight[9] = -1
 
             direction = self.can.neat.evaluate(sight)
 
