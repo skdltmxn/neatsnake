@@ -26,6 +26,7 @@ class Neat:
             self.add_species(network)
 
         self._network_cache = self._species[0].network(0)
+        self._network_cache.generate()
 
     def load(self):
         base = self._save_path
@@ -54,6 +55,7 @@ class Neat:
                 self._species.append(Species.from_json(species))
 
         self._network_cache = self._species[0].network(0)
+        self._network_cache.generate()
 
     def save(self, base):
         if not os.path.exists(base):
@@ -236,6 +238,8 @@ class Neat:
     def next(self):
         while self._network_cache.fitness() != 0:
             self._next()
+
+        self._network_cache.generate()
 
     def generation(self):
         return self._generation

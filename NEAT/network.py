@@ -203,7 +203,7 @@ class Network:
 
         return child
 
-    def _generate(self):
+    def generate(self):
         in_len = self._input
         out_len = self._output
         self._neurons = {}
@@ -336,8 +336,6 @@ class Network:
         # print(self._max_neurons, len(self._genes))
 
     def evaluate(self, input):
-        self._generate()
-
         in_len = self._input
         out_len = self._output
         neurons = self._neurons
