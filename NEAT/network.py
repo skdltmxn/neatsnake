@@ -35,6 +35,9 @@ class Neuron:
 
         return obj
 
+    def reset(self):
+        self._resolved = False
+
     def bias(self):
         return self._bias
 
@@ -335,6 +338,9 @@ class Network:
         # print(self._max_neurons, len(self._genes))
 
     def evaluate(self, input):
+        for _, neuron in self._neurons.items():
+            neuron.reset()
+
         in_len = self._input
         out_len = self._output
         neurons = self._neurons
