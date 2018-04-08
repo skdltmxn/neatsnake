@@ -7,7 +7,7 @@ class Neuron:
     def __init__(self):
         self._value = 0.0
         self._resolved = False
-        self._bias = np.random.rand()
+        self._bias = 0.0#np.random.rand()
         self._incoming = []
 
     @staticmethod
@@ -61,7 +61,7 @@ class Network:
         self._input = input
         self._output = output
         self._mutation_rate = {
-            'MUTATE_WEIGHT': 0.5,
+            'MUTATE_WEIGHT': 0.25,
             'PERTURB': 0.9,
             'PERTURB_BIAS': 0.1,
             'MUTATE_GENE': 1.0,
@@ -190,6 +190,7 @@ class Network:
     def _generate(self):
         in_len = self._input
         out_len = self._output
+        self._neurons = {}
 
         # input neurons
         for i in range(in_len):

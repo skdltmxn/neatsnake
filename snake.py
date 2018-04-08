@@ -46,7 +46,7 @@ class Master(Canvas):
         self.direction = None
         self.current = None
         self.score = Scores(boss)
-        self.neat = Neat(input_size=STEP * STEP, output_size=4)
+        self.neat = Neat(input_size=3 * 3, output_size=4)
         self.neat.load()
         self.generation = StringVar(self, '0')
         self.species = StringVar(self, '0')
@@ -91,9 +91,10 @@ class Master(Canvas):
             self.current.begin()  # program gets tricked if the user presses two arrow keys really quickly
 
     '''
+        -1: out of map
+        -1: snake body
         1: empty space
-        2: snake body
-        3: apple
+        2: apple
     '''
     def map(self):
         tile = [1 for _ in range(STEP * STEP)]
@@ -101,13 +102,42 @@ class Master(Canvas):
         for block in self.snake.blocks:
             x = (block.x - 10) // STEP
             y = (block.y - 10) // STEP
-            tile[y * STEP + x] = 2
+            tile[y * STEP + x] = -1
 
         x = (self.obstacle.x - 10) // STEP
         y = (self.obstacle.y - 10) // STEP
-        tile[y * STEP + x] = 3
+        tile[y * STEP + x] = 2
 
         return tile
+
+    # get 3x3 sight around given x, y
+    def sight(self, x, y):
+        sight = [1 for _ in range(3 * 3)]
+
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                xx = x + dx
+                yy = y + dy
+
+                if xx < 0 or xx >= STEP or yy < 0 or yy >= STEP:
+                    sight[(dy + 1) * 3 + (dx + 1)] = -1
+                else:
+                    # check if we see snake body
+                    for block in self.snake.blocks:
+                        snake_x = (block.x - 10) // STEP
+                        snake_y = (block.y - 10) // STEP
+
+                        if xx == snake_x and yy == snake_y:
+                            sight[(dy + 1) * 3 + (dx + 1)] = -1
+
+                    # check if we see food
+                    food_x = (self.obstacle.x - 10) // STEP
+                    food_y = (self.obstacle.y - 10) // STEP
+
+                    if xx == food_x and yy == food_y:
+                        sight[(dy + 1) * 3 + (dx + 1)] = 2
+
+        return sight
 
 class Scores:
     """Objects that keep track of the score and high score"""
@@ -215,13 +245,18 @@ class Snake:
 
             # got further from food => penalty
             if old_dist < new_dist:
-                fitness = self.can.neat.add_fitness(-1)
+                fitness = self.can.neat.add_fitness(-2)
             else:
-                fitness = self.can.neat.add_fitness(2)
+                fitness = self.can.neat.add_fitness(1)
 
             self.can.fitness.set(fitness)
             if fitness > int(self.can.max_fitness.get()):
                 self.can.max_fitness.set(fitness)
+
+            # too bad fitness
+            if fitness < -150:
+                self.can.clean()
+                self.can.start()
 
             self.blocks[0].modify(new_x, new_y)
             self.blocks = self.blocks[1:] + [self.blocks[0]]
@@ -237,8 +272,12 @@ class Movement:
     def begin(self):
         """start the perpetual motion"""
         if self.flag > 0:
-            map = self.can.map()
-            direction = self.can.neat.evaluate(map)
+            #map = self.can.map()
+            dx, dy = DIRECTIONS[self.direction]
+            x = (self.can.snake.blocks[-1].x - 10) // STEP
+            y = (self.can.snake.blocks[-1].y - 10) // STEP
+            sight = self.can.sight(x + dx, y + dy)
+            direction = self.can.neat.evaluate(sight)
 
             if self.direction != direction and \
                 direction in AXES.keys() and \

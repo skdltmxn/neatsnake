@@ -20,10 +20,10 @@ class Neat:
         self._network_cache = None
 
     def init(self):
-        for _ in range(self._population):
-            network = Network.create_basic(self._input_size, self._output_size)
-            network.mutate()
-            self.add_species(network)
+        #for _ in range(self._population):
+        network = Network.create_basic(self._input_size, self._output_size)
+        network.mutate()
+        self.add_species(network)
 
         self._network_cache = self._species[0].network(0)
 
@@ -127,18 +127,38 @@ class Neat:
 
         self._species = survived
 
+    def _respeciate(self):
+        unordered = []
+        for species in self._species:
+            _, rest = species.remove_lower(1)
+            unordered += rest
+
+        for network in unordered:
+            self.add_species(network)
+
+    def _total_networks(self):
+        total = 0
+        for species in self._species:
+            total += species.num_networks()
+
+        return total
+
     def next_generation(self):
 
-        self._remove_stale_species()
         self._global_ranking()
-        self._remove_weak_species()
-
-        total_adjust_fitness = 0.0
 
         for species in self._species:
             # remove lowest performing members
             species.remove_lower(species.num_networks() // 2)
 
+        self._remove_stale_species()
+        #self._global_ranking()
+        self._remove_weak_species()
+        self._global_ranking()
+
+        total_adjust_fitness = 0.0
+
+        for species in self._species:
             # calculate adjust fitness
             total_adjust_fitness += species.calculate_adjust_fitness()
 
@@ -146,30 +166,40 @@ class Neat:
         for species in self._species:
             n_children = math.floor(species.adjust_fitness() / total_adjust_fitness * self._population)
 
-            for _ in range(n_children):
-                children.append(species.make_child())
+            if n_children > 0:
+                for _ in range(n_children):
+                    #children.append(species.make_child())
+                    species.add_network(species.make_child())
 
-            species.remove_lower(1)
+            #species.remove_lower(1)
 
-        rest = self._population - len(children) - len(self._species)
+        # rest = self._population - len(children) - len(self._species)
+        #
+        # if rest > 0:
+        #     for _ in range(rest):
+        #         species = self._species[np.random.randint(len(self._species))]
+        #         children.append(species.make_child())
 
+        # for child in children:
+        #     self.add_species(child)
+        rest = self._population - self._total_networks()
         if rest > 0:
             for _ in range(rest):
                 species = self._species[np.random.randint(len(self._species))]
-                children.append(species.make_child())
+                species.add_network(species.make_child())
 
-        for child in children:
-            self.add_species(child)
+        self._respeciate()
 
-        # print(list(map(Species.num_networks, self._species)))
+        #print(self._population, len(children), rest, list(map(Species.num_networks, self._species)))
 
         self._current_network = 0
         self._generation += 1
 
-        self.save(Neat.save_path)
+        # save every 5 generation
+        if self._generation % 5 == 0:
+            self.save(Neat.save_path)
 
-
-    def next(self):
+    def _next(self):
         self._current_network += 1
         species = self._species[self._current_species]
 
@@ -182,7 +212,10 @@ class Neat:
 
         species = self._species[self._current_species]
         self._network_cache = species.network(self._current_network)
-        #print(self._current_network, self._current_species)
+
+    def next(self):
+        while self._network_cache.fitness() != 0:
+            self._next()
 
     def generation(self):
         return self._generation

@@ -90,8 +90,9 @@ class Species:
         if remaining == 0:
             return
 
-        rank = sorted(self._networks, key=Network.fitness, reverse=True)
+        rank = sorted(self._networks, key=Network.ranking, reverse=True)
         self._networks = rank[:remaining]
+        return rank[:remaining], rank[remaining:]
 
     def add_network(self, network):
         self._networks.append(network)
