@@ -7,7 +7,7 @@ class Neuron:
     def __init__(self):
         self._value = 0.0
         self._resolved = False
-        self._bias = 0.0#np.random.rand()
+        self._bias = np.random.rand()
         self._incoming = []
 
     @staticmethod
@@ -172,15 +172,31 @@ class Network:
                 # same fitness -> random parent
                 if mom.fitness() == dad.fitness():
                     if np.random.rand() < 0.5:
-                        child_genes.append(Gene.copy(mom_gene, new=False))
+                        child_gene = Gene.copy(mom_gene, new=False)
                     else:
-                        child_genes.append(Gene.copy(dad_gene, new=False))
+                        child_gene = Gene.copy(dad_gene, new=False)
                 # fitter parent = mom
                 else:
-                    child_genes.append(Gene.copy(mom_gene, new=False))
+                    child_gene = Gene.copy(mom_gene, new=False)
+
+                if not mom_gene.enabled() or not dad_gene.enabled():
+                    if np.random.rand() < 0.75:
+                        child_gene.set_enable(False)
+
+                child_genes.append(child_gene)
             # disjoints or excess
             else:
                 child_genes.append(Gene.copy(mom_gene, new=False))
+
+        if mom.fitness() == dad.fitness():
+            mom_inn = {}
+            for gene in mom_genes:
+                mom_inn[gene.innovation()] = gene
+
+            for dad_gene in dad_genes:
+                if dad_gene.innovation() not in mom_inn:
+                    if np.random.rand() < 0.5:
+                        child_genes.append(Gene.copy(dad_gene, new=False))
 
         child = Network(input=mom._input, output=mom._output, genes=child_genes)
         child._max_neurons = max(mom._max_neurons, dad._max_neurons)
@@ -254,6 +270,9 @@ class Network:
         n1 = self._random_neuron(False)
         n2 = self._random_neuron(True)
 
+        # if np.random.rand() < 0.4:
+        #     n1 = np.random.randint(self._input)
+
         if n1 == n2 or self._gene_exists(n1, n2):
             return
 
@@ -291,24 +310,22 @@ class Network:
             candidates[np.random.randint(len(candidates))].set_enable(enable)
 
     def mutate(self):
-        # for key, val in self._mutation_rate.items():
-        #     if np.random.rand() < 0.5:
-        #         self._mutation_rate[key] = val * 0.95
-        #     else:
-        #         self._mutation_rate[key] = val * 1.05263
-        #
-        #     print(key, val)
+        for key, val in self._mutation_rate.items():
+            if np.random.rand() < 0.5:
+                self._mutation_rate[key] = val * 0.95
+            else:
+                self._mutation_rate[key] = val * 1.05263
 
         if np.random.rand() < self._mutation_rate['MUTATE_WEIGHT']:
             self.mutate_weight(self._mutation_rate['PERTURB'])
 
         if np.random.rand() < self._mutation_rate['MUTATE_GENE']:
-            for _ in range(4):
+            for _ in range(2):
                 self.mutate_gene()
 
         if np.random.rand() < self._mutation_rate['MUTATE_NEURON']:
-            for _ in range(2):
-                self.mutate_neuron()
+            #for _ in range(2):
+            self.mutate_neuron()
 
         if np.random.rand() < self._mutation_rate['ENABLE']:
             self.mutate_enable(True)

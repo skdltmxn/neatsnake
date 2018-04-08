@@ -4,12 +4,12 @@ from math import exp
 
 # 1, 1, 0.4 - crAIg
 # 2, 2, 0.4 - marI/O
-C1 = 1.5
+C1 = 2.0
 C3 = 0.4
 
 # 2.5 - crAIg
 # 1.0 - marI/O
-THRESHOLD = 1.7
+THRESHOLD = 1.0
 
 def disjoints(genes1, genes2):
     s1 = set()

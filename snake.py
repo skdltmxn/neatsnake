@@ -32,8 +32,10 @@ DIRECTIONS = {0: [0, -1], 1: [0, 1], 2: [1, 0], 3: [-1, 0]}
 AXES = {0: 'Vertical', 1: 'Vertical', 2: 'Horizontal', 3: 'Horizontal'}
 DIRECTION_CONVERT = {0: UP, 1: DOWN, 2: RIGHT, 3: LEFT}
 # refresh time for the perpetual motion
-REFRESH_TIME = 10
+REFRESH_TIME = 1
 
+def distance(x1, y1, x2, y2):
+    return sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 class Master(Canvas):
     """create the game canvas, the snake, the obstacle, keep track of the score"""
@@ -46,7 +48,7 @@ class Master(Canvas):
         self.direction = None
         self.current = None
         self.score = Scores(boss)
-        self.neat = Neat(input_size=3 * 3, output_size=4)
+        self.neat = Neat(input_size=5 * 5 + 1, output_size=3, save_path='./save')
         self.neat.load()
         self.generation = StringVar(self, '0')
         self.species = StringVar(self, '0')
@@ -112,15 +114,15 @@ class Master(Canvas):
 
     # get 3x3 sight around given x, y
     def sight(self, x, y):
-        sight = [1 for _ in range(3 * 3)]
+        sight = [1 for _ in range(5 * 5 + 1)]
 
-        for dx in range(-1, 2):
-            for dy in range(-1, 2):
+        for dx in range(-2, 3):
+            for dy in range(-2, 3):
                 xx = x + dx
                 yy = y + dy
 
                 if xx < 0 or xx >= STEP or yy < 0 or yy >= STEP:
-                    sight[(dy + 1) * 3 + (dx + 1)] = -1
+                    sight[(dy + 1) * 5 + (dx + 1)] = -1
                 else:
                     # check if we see snake body
                     for block in self.snake.blocks:
@@ -128,14 +130,14 @@ class Master(Canvas):
                         snake_y = (block.y - 10) // STEP
 
                         if xx == snake_x and yy == snake_y:
-                            sight[(dy + 1) * 3 + (dx + 1)] = -1
+                            sight[(dy + 1) * 5 + (dx + 1)] = -1
 
                     # check if we see food
                     food_x = (self.obstacle.x - 10) // STEP
                     food_y = (self.obstacle.y - 10) // STEP
 
                     if xx == food_x and yy == food_y:
-                        sight[(dy + 1) * 3 + (dx + 1)] = 2
+                        sight[(dy + 1) * 5 + (dx + 1)] = 2
 
         return sight
 
@@ -237,9 +239,6 @@ class Snake:
             self.can.clean()
             self.can.start()
         else:
-            def distance(x1, y1, x2, y2):
-                return sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-
             old_dist = distance(old_x, old_y, self.can.obstacle.x, self.can.obstacle.y)
             new_dist = distance(new_x, new_y, self.can.obstacle.x, self.can.obstacle.y)
 
@@ -272,17 +271,75 @@ class Movement:
     def begin(self):
         """start the perpetual motion"""
         if self.flag > 0:
-            #map = self.can.map()
+            map = self.can.map()
             dx, dy = DIRECTIONS[self.direction]
             x = (self.can.snake.blocks[-1].x - 10) // STEP
             y = (self.can.snake.blocks[-1].y - 10) // STEP
-            sight = self.can.sight(x + dx, y + dy)
+            sight = self.can.sight(x, y)
+
+            food_x = (self.can.obstacle.x - 10) // STEP
+            food_y = (self.can.obstacle.y - 10) // STEP
+
+            # UP
+            if self.direction == 0:
+                if food_x < x:
+                    sight[9] = -1
+                elif food_x == x:
+                    sight[9] = 0
+                else:
+                    sight[9] = 1
+            # DOWN
+            elif self.direction == 1:
+                if food_x < x:
+                    sight[9] = 1
+                elif food_x == x:
+                    sight[9] = 0
+                else:
+                    sight[9] = -1
+            # RIGHT
+            elif self.direction == 2:
+                if food_y < y:
+                    sight[9] = -1
+                elif food_y == y:
+                    sight[9] = 0
+                else:
+                    sight[9] = 1
+            # LEFT
+            elif self.direction == 3:
+                if food_y < y:
+                    sight[9] = 1
+                elif food_y == y:
+                    sight[9] = 0
+                else:
+                    sight[9] = -1
+
             direction = self.can.neat.evaluate(sight)
 
-            if self.direction != direction and \
-                direction in AXES.keys() and \
-                AXES[direction] != AXES[self.direction]:
-                self.direction = direction
+            # make left turn
+            if direction == 0:
+                if self.direction == 0:
+                    self.direction = 3
+                elif self.direction == 1:
+                    self.direction = 2
+                elif self.direction == 2:
+                    self.direction = 0
+                elif self.direction == 3:
+                    self.direction = 1
+            # make right turn
+            elif direction == 2:
+                if self.direction == 0:
+                    self.direction = 2
+                elif self.direction == 1:
+                    self.direction = 3
+                elif self.direction == 2:
+                    self.direction = 1
+                elif self.direction == 3:
+                    self.direction = 0
+
+            # if self.direction != direction and \
+            #     direction in AXES.keys() and \
+            #     AXES[direction] != AXES[self.direction]:
+            #     self.direction = direction
 
             self.can.snake.move(DIRECTIONS[self.direction])
             self.can.after(REFRESH_TIME, self.begin)

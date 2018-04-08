@@ -6,9 +6,8 @@ import os
 
 class Neat:
     innovation = 0
-    save_path = './save'
 
-    def __init__(self, population=30, input_size=400, output_size=4):
+    def __init__(self, population=50, input_size=400, output_size=4, save_path='./save'):
         #self.pool = Pool(population)
         self._population = population
         self._species = []
@@ -18,17 +17,18 @@ class Neat:
         self._input_size = input_size
         self._output_size = output_size
         self._network_cache = None
+        self._save_path = save_path
 
     def init(self):
-        #for _ in range(self._population):
-        network = Network.create_basic(self._input_size, self._output_size)
-        network.mutate()
-        self.add_species(network)
+        for _ in range(self._population):
+            network = Network.create_basic(self._input_size, self._output_size)
+            network.mutate()
+            self.add_species(network)
 
         self._network_cache = self._species[0].network(0)
 
     def load(self):
-        base = Neat.save_path
+        base = self._save_path
         if not os.path.exists(base):
             self.init()
             return
@@ -87,6 +87,9 @@ class Neat:
         self._species.append(species)
 
     def _remove_stale_species(self):
+        if len(self._species) < 2:
+            return
+
         survived = []
         for species in self._species:
             mfn = species.max_fitness_now()
@@ -149,7 +152,7 @@ class Neat:
 
         for species in self._species:
             # remove lowest performing members
-            species.remove_lower(species.num_networks() // 2)
+            species.remove_lower(species.num_networks() // 4)
 
         self._remove_stale_species()
         #self._global_ranking()
@@ -162,14 +165,28 @@ class Neat:
             # calculate adjust fitness
             total_adjust_fitness += species.calculate_adjust_fitness()
 
-        children = []
+        #children = []
+        rest = self._population - self._total_networks()
         for species in self._species:
-            n_children = math.floor(species.adjust_fitness() / total_adjust_fitness * self._population)
+            n_children = math.floor(species.adjust_fitness() / total_adjust_fitness * rest)
 
             if n_children > 0:
                 for _ in range(n_children):
                     #children.append(species.make_child())
-                    species.add_network(species.make_child())
+                    # inter-species crossover
+                    if len(self._species) > 1 and np.random.rand() < 0.4:
+                        while True:
+                            other = self._species[np.random.randint(len(self._species))]
+                            if other != species:
+                                break
+
+                        mom = species.fetch_random_network()
+                        dad = other.fetch_random_network()
+                        child = Network.crossover(mom, dad)
+                        child.mutate()
+                        species.add_network(child)
+                    else:
+                        species.add_network(species.make_child())
 
             #species.remove_lower(1)
 
@@ -182,22 +199,25 @@ class Neat:
 
         # for child in children:
         #     self.add_species(child)
+
         rest = self._population - self._total_networks()
         if rest > 0:
             for _ in range(rest):
-                species = self._species[np.random.randint(len(self._species))]
+                ns = len(self._species)
+                species = self._species[np.random.randint(ns) if ns > 1 else 0]
                 species.add_network(species.make_child())
 
         self._respeciate()
+
+        print(self._total_networks(), list(map(Species.num_networks, self._species)))
 
         #print(self._population, len(children), rest, list(map(Species.num_networks, self._species)))
 
         self._current_network = 0
         self._generation += 1
 
-        # save every 5 generation
-        if self._generation % 5 == 0:
-            self.save(Neat.save_path)
+
+        self.save(self._save_path)
 
     def _next(self):
         self._current_network += 1
