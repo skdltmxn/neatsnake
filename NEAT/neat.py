@@ -98,7 +98,7 @@ class Neat:
             if species.max_fitness() < mfn:
                 species.set_max_fitness(mfn)
             else:
-                if species.add_stale_count() >= 15:
+                if species.add_stale_count() >= 8:
                     # too many disappointments... remove it
                     continue
 
@@ -120,13 +120,19 @@ class Neat:
             network.set_ranking(rank)
             rank += 1
 
-    def _remove_weak_species(self):
+    def _total_adjust_fitness(self):
         total_adjust_fitness = 0.0
-        survived = []
 
         for species in self._species:
             total_adjust_fitness += species.calculate_adjust_fitness()
 
+        return total_adjust_fitness
+
+    def _remove_weak_species(self):
+        survived = []
+        total_adjust_fitness = self._total_adjust_fitness()
+
+        for species in self._species:
             if math.floor(species.adjust_fitness() / total_adjust_fitness * self._population) >= 1:
                 survived.append(species)
 
@@ -154,18 +160,14 @@ class Neat:
 
         for species in self._species:
             # remove lowest performing members
-            species.remove_lower(species.num_networks() // 4)
+            species.remove_lower(species.num_networks() // 3)
 
         self._remove_stale_species()
         #self._global_ranking()
         self._remove_weak_species()
         self._global_ranking()
 
-        total_adjust_fitness = 0.0
-
-        for species in self._species:
-            # calculate adjust fitness
-            total_adjust_fitness += species.calculate_adjust_fitness()
+        total_adjust_fitness = self._total_adjust_fitness()
 
         #children = []
         rest = self._population - self._total_networks()
@@ -265,6 +267,8 @@ class Neat:
         self._network_cache.add_fitness(fitness)
         return self._network_cache.fitness()
 
+    def fitness(self):
+        return self._network_cache.fitness()
 
 from .network import *
 from .species import *

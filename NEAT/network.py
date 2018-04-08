@@ -7,7 +7,7 @@ class Neuron:
     def __init__(self):
         self._value = 0.0
         self._resolved = False
-        self._bias = np.random.rand()
+        self._bias = np.random.rand() * 0.2 - 0.1
         self._incoming = []
 
     @staticmethod
@@ -263,7 +263,7 @@ class Network:
                 new_w = gene.w() + np.random.rand() * self._mutation_rate['PERTURB_BIAS'] * (-1 if np.random.rand() < 0.5 else 1)
                 gene.set_w(new_w)
             else:
-                gene.set_w(np.random.rand() * 2 - 1)
+                gene.set_w(np.random.rand() * 4 - 2)
 
     # add a new gene
     def mutate_gene(self):
@@ -320,8 +320,7 @@ class Network:
             self.mutate_weight(self._mutation_rate['PERTURB'])
 
         if np.random.rand() < self._mutation_rate['MUTATE_GENE']:
-            for _ in range(2):
-                self.mutate_gene()
+            self.mutate_gene()
 
         if np.random.rand() < self._mutation_rate['MUTATE_NEURON']:
             #for _ in range(2):
@@ -356,7 +355,8 @@ class Network:
                 sum += other_val * incoming.w() + other.bias()
 
             if len(neuron.incoming()) > 0:
-                return sigmoid(sum)
+                neuron.set_value(sigmoid(sum))
+                return neuron.value()
             else:
                 return 0.0
 

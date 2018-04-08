@@ -31,7 +31,7 @@ class Gene:
 
     @staticmethod
     def create(into, out):
-        return Gene(into, out, np.random.rand() * 2 - 1, True, Neat.new_innovation())
+        return Gene(into, out, np.random.rand() * 4 - 2, True, Neat.new_innovation())
 
     @staticmethod
     def copy(src, new=True):
