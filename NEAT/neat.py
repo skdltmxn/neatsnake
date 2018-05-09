@@ -28,6 +28,32 @@ class Neat:
         self._network_cache = self._species[0].network(0)
         self._network_cache.generate()
 
+    def get_graph(self):
+        base = self._save_path
+        if not os.path.exists(base):
+            return
+
+        with open('graph.csv', 'wb') as f_g:
+            for _, _, file in os.walk(base):
+                for f in file:
+                    gen = int(f.split('.')[0])
+                    path = os.path.join(base, f)
+
+                    data = open(path, 'rb').read()
+                    obj = json.loads(data)
+                    species = []
+                    for sp in obj['species']:
+                        species.append(Species.from_json(sp))
+
+                    max_fitness = -2000
+                    for sp in species:
+                        for nw in sp.networks():
+                            if nw.fitness() > max_fitness:
+                                max_fitness = nw.fitness()
+
+                    f_g.write('{0},{1}\n'.format(gen, max_fitness).encode())
+
+
     def load(self):
         base = self._save_path
         if not os.path.exists(base):

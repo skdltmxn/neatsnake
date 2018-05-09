@@ -48,8 +48,9 @@ class Master(Canvas):
         self.direction = None
         self.current = None
         self.score = Scores(boss)
-        self.neat = Neat(input_size=3 * 3 + 1, output_size=3, save_path='./save')
+        self.neat = Neat(input_size=3 * 3 + 2, output_size=3, save_path='./save')
         self.neat.load()
+        #self.neat.get_graph()
         self.generation = StringVar(self, '0')
         self.species = StringVar(self, '0')
         self.network = StringVar(self, '0')
@@ -318,6 +319,8 @@ class Movement:
                 else:
                     sight[9] = -1
 
+            # bias
+            sight.append(1)
             direction = self.can.neat.evaluate(sight)
 
             # make left turn

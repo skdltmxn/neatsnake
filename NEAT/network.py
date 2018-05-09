@@ -339,7 +339,7 @@ class Network:
         # print(self._max_neurons, len(self._genes))
 
     def evaluate(self, input):
-        self.generate()
+        #self.generate()
 
         in_len = self._input
         out_len = self._output
