@@ -57,7 +57,8 @@ class Species:
     def calculate_adjust_fitness(self):
         sum = 0
         for network in self._networks:
-            sum += network.ranking()
+            sum += network.fitness()
+            #sum += network.ranking()
 
         self._adjust_fitness = sum / len(self._networks)
 

@@ -50,7 +50,7 @@ class Master(Canvas):
         self.score = Scores(boss)
         self.neat = Neat(input_size=3 * 3 + 2, output_size=3, save_path='./save')
         self.neat.load()
-        #self.neat.get_graph()
+        self.neat.get_graph()
         self.generation = StringVar(self, '0')
         self.species = StringVar(self, '0')
         self.network = StringVar(self, '0')
@@ -99,31 +99,33 @@ class Master(Canvas):
         1: empty space
         2: apple
     '''
-    def map(self):
-        tile = [1 for _ in range(STEP * STEP)]
-
-        for block in self.snake.blocks:
-            x = (block.x - 10) // STEP
-            y = (block.y - 10) // STEP
-            tile[y * STEP + x] = -1
-
-        x = (self.obstacle.x - 10) // STEP
-        y = (self.obstacle.y - 10) // STEP
-        tile[y * STEP + x] = 2
-
-        return tile
+    # def map(self):
+    #     tile = [1 for _ in range(STEP * STEP)]
+    #
+    #     for block in self.snake.blocks:
+    #         x = (block.x - 10) // STEP
+    #         y = (block.y - 10) // STEP
+    #         tile[y * STEP + x] = -1
+    #
+    #     x = (self.obstacle.x - 10) // STEP
+    #     y = (self.obstacle.y - 10) // STEP
+    #     tile[y * STEP + x] = 2
+    #
+    #     return tile
 
     # get 3x3 sight around given x, y
     def sight(self, x, y):
-        sight = [1 for _ in range(3 * 3 + 1)]
+        sight = []
 
         for dx in range(-1, 2):
             for dy in range(-1, 2):
                 xx = x + dx
                 yy = y + dy
 
+                # check if we see wall
                 if xx < 0 or xx >= STEP or yy < 0 or yy >= STEP:
-                    sight[(dy + 1) * 3 + (dx + 1)] = -1
+                    #sight[(dy + 1) * 5 + (dx + 1)] = -1
+                    sight.append(-1)
                 else:
                     # check if we see snake body
                     for block in self.snake.blocks:
@@ -131,14 +133,19 @@ class Master(Canvas):
                         snake_y = (block.y - 10) // STEP
 
                         if xx == snake_x and yy == snake_y:
-                            sight[(dy + 1) * 3 + (dx + 1)] = -1
+                            #sight[(dy + 1) * 3 + (dx + 1)] = -1
+                            sight.append(-1)
+                            break
 
                     # check if we see food
                     food_x = (self.obstacle.x - 10) // STEP
                     food_y = (self.obstacle.y - 10) // STEP
 
                     if xx == food_x and yy == food_y:
-                        sight[(dy + 1) * 3 + (dx + 1)] = 2
+                        #sight[(dy + 1) * 5 + (dx + 1)] = 1
+                        sight.append(1)
+                    else:
+                        sight.append(0)
 
         return sight
 
@@ -281,7 +288,7 @@ class Movement:
             dx, dy = DIRECTIONS[self.direction]
             x = (self.can.snake.blocks[-1].x - 10) // STEP
             y = (self.can.snake.blocks[-1].y - 10) // STEP
-            sight = self.can.sight(x, y)
+            sight = self.can.sight(x + dx, y + dy)
 
             food_x = (self.can.obstacle.x - 10) // STEP
             food_y = (self.can.obstacle.y - 10) // STEP
@@ -289,35 +296,36 @@ class Movement:
             # UP
             if self.direction == 0:
                 if food_x < x:
-                    sight[9] = -1
+                    sight.append(-1)
                 elif food_x == x:
-                    sight[9] = 0
+                    sight.append(0)
                 else:
-                    sight[9] = 1
+                    sight.append(1)
             # DOWN
             elif self.direction == 1:
                 if food_x < x:
-                    sight[9] = 1
+                    sight.append(1)
                 elif food_x == x:
-                    sight[9] = 0
+                    sight.append(0)
                 else:
-                    sight[9] = -1
+                    sight.append(-1)
             # RIGHT
             elif self.direction == 2:
                 if food_y < y:
-                    sight[9] = -1
+                    sight.append(-1)
                 elif food_y == y:
-                    sight[9] = 0
+                    sight.append(0)
                 else:
-                    sight[9] = 1
+                    sight.append(1)
             # LEFT
             elif self.direction == 3:
                 if food_y < y:
-                    sight[9] = 1
+                    sight.append(1)
                 elif food_y == y:
-                    sight[9] = 0
+                    sight.append(0)
                 else:
-                    sight[9] = -1
+                    sight.append(-1)
+            #sight.append(1 / distance(x, y, food_x, food_y))
 
             # bias
             sight.append(1)

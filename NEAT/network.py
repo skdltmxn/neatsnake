@@ -106,6 +106,14 @@ class Network:
 
         return network
 
+    def to_string(self):
+        msg = ''
+
+        for gene in self._genes:
+            msg += '{} -{:.2f}-> {} | '.format(gene.into(), gene.w(), gene.out())
+
+        print(msg)
+
     def to_json(self):
         obj = {
             'fitness': self._fitness,
@@ -254,11 +262,25 @@ class Network:
         self._ranking = rank
 
     def _random_neuron(self, non_input=False):
-        nl = self._max_neurons
-        if non_input:
-            return np.random.randint(self._input, nl)
-        else:
-            return np.random.randint(nl)
+        candidates = []
+        in_len = self._input
+        out_len = self._output
+
+        if not non_input:
+            for i in range(in_len):
+                candidates.append(i)
+
+        for i in range(in_len, in_len + out_len):
+            candidates.append(i)
+
+        for gene in self._genes:
+            if not non_input or gene.into() >= in_len:
+                candidates.append(gene.into())
+
+            if not non_input or gene.out() >= in_len:
+                candidates.append(gene.out())
+
+        return candidates[np.random.randint(len(candidates))]
 
     # change gene weight
     def mutate_weight(self, perturb_prob):
@@ -274,8 +296,9 @@ class Network:
         n1 = self._random_neuron(False)
         n2 = self._random_neuron(True)
 
-        # if np.random.rand() < 0.4:
-        #     n1 = np.random.randint(self._input)
+        # force bias
+        if np.random.rand() < 0.4:
+            n1 = self._input - 1
 
         if n1 == n2 or self._gene_exists(n1, n2):
             return
@@ -323,11 +346,11 @@ class Network:
         if np.random.rand() < self._mutation_rate['MUTATE_WEIGHT']:
             self.mutate_weight(self._mutation_rate['PERTURB'])
 
-        if np.random.rand() < self._mutation_rate['MUTATE_GENE']:
+        #if np.random.rand() < self._mutation_rate['MUTATE_GENE']:
+        for _ in range(2):
             self.mutate_gene()
 
         if np.random.rand() < self._mutation_rate['MUTATE_NEURON']:
-            #for _ in range(2):
             self.mutate_neuron()
 
         if np.random.rand() < self._mutation_rate['ENABLE']:
@@ -339,8 +362,6 @@ class Network:
         # print(self._max_neurons, len(self._genes))
 
     def evaluate(self, input):
-        #self.generate()
-
         in_len = self._input
         out_len = self._output
         neurons = self._neurons
@@ -377,6 +398,10 @@ class Network:
 
             if val > max_value:
                 max_output, max_value = i, val
+
+        # reset all neurons for next evaluation
+        #for _, neuron in neurons.items():
+        #    neuron.reset()
 
         return max_output - in_len
 

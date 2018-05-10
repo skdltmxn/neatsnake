@@ -124,7 +124,7 @@ class Neat:
             if species.max_fitness() < mfn:
                 species.set_max_fitness(mfn)
             else:
-                if species.add_stale_count() >= 8:
+                if species.add_stale_count() >= 15:
                     # too many disappointments... remove it
                     continue
 
@@ -148,20 +148,30 @@ class Neat:
 
     def _total_adjust_fitness(self):
         total_adjust_fitness = 0.0
+        minimum = 0.0
 
         for species in self._species:
-            total_adjust_fitness += species.calculate_adjust_fitness()
+            adjust_fitness = species.calculate_adjust_fitness()
 
-        return total_adjust_fitness
+            if adjust_fitness < minimum:
+                minimum = adjust_fitness
+
+            total_adjust_fitness += adjust_fitness
+
+        if minimum < 0.0:
+            total_adjust_fitness += abs(minimum) * len(self._species)
+
+        return total_adjust_fitness, minimum
 
     def _remove_weak_species(self):
         survived = []
-        total_adjust_fitness = self._total_adjust_fitness()
+        total_adjust_fitness, minimum = self._total_adjust_fitness()
 
         for species in self._species:
-            if math.floor(species.adjust_fitness() / total_adjust_fitness * self._population) >= 1:
+            if math.floor((species.adjust_fitness() + abs(minimum)) / total_adjust_fitness * self._population) >= 1:
                 survived.append(species)
 
+        #print('{} / {} survived'.format(len(survived), len(self._species)))
         self._species = survived
 
     def _respeciate(self):
@@ -180,72 +190,88 @@ class Neat:
 
         return total
 
+    def _unspeciate(self):
+        networks = []
+        for species in self._species:
+            for network in species.networks():
+                networks.append(network)
+
+        self._species = []
+
+        return networks
+
+    def _rullet(self, networks, minimum):
+        minimum = abs(minimum)
+        fitness_sum = sum(map(Network.fitness, networks)) + (minimum * len(networks))
+
+        r = np.random.randint(fitness_sum)
+        s = 0
+
+        for network in networks:
+            s += network.fitness() + minimum
+            if s > r:
+                return network
+
+        return networks[0]
+
     def next_generation(self):
+        networks = self._unspeciate()
 
-        self._global_ranking()
+        # copy top 3 networks without any mutation
+        elite = 3
 
-        for species in self._species:
-            # remove lowest performing members
-            species.remove_lower(species.num_networks() // 3)
+        ranking = sorted(networks, key=Network.fitness, reverse=True)
+        #print(list(map(Network.fitness, ranking)))
 
-        self._remove_stale_species()
+        for i in range(elite):
+            self.add_species(ranking[i])
+
+        for _ in range(self._population - elite):
+            mom = self._rullet(ranking, ranking[-1].fitness())
+            dad = self._rullet(ranking, ranking[-1].fitness())
+
+            child = Network.crossover(mom, dad)
+            child.mutate()
+            #next_networks.append(child)
+            self.add_species(child)
+
         #self._global_ranking()
-        self._remove_weak_species()
-        self._global_ranking()
 
-        total_adjust_fitness = self._total_adjust_fitness()
-
-        #children = []
-        rest = self._population - self._total_networks()
-        for species in self._species:
-            n_children = math.floor(species.adjust_fitness() / total_adjust_fitness * rest)
-
-            if n_children > 0:
-                for _ in range(n_children):
-                    #children.append(species.make_child())
-                    # inter-species crossover
-                    if len(self._species) > 1 and np.random.rand() < 0.4:
-                        while True:
-                            other = self._species[np.random.randint(len(self._species))]
-                            if other != species:
-                                break
-
-                        mom = species.fetch_random_network()
-                        dad = other.fetch_random_network()
-                        child = Network.crossover(mom, dad)
-                        child.mutate()
-                        species.add_network(child)
-                    else:
-                        species.add_network(species.make_child())
-
-            #species.remove_lower(1)
-
-        # rest = self._population - len(children) - len(self._species)
+        # for species in self._species:
+        #     # remove lowest performing members
+        #     species.remove_lower(species.num_networks() // 2)
         #
+        # self._remove_stale_species()
+        # self._remove_weak_species()
+        # #self._global_ranking()
+        #
+        # # now no species have negative average fitness
+        # total_adjust_fitness, minimum = self._total_adjust_fitness()
+        #
+        # children = []
+        # for species in self._species:
+        #     n_children = math.floor((species.adjust_fitness() + abs(minimum)) / total_adjust_fitness * self._population) - 1
+        #
+        #     if n_children > 0:
+        #         for _ in range(n_children):
+        #             children.append(species.make_child())
+        #
+        #     species.remove_lower(1)
+        #
+        # rest = self._population - len(self._species) - len(children)
         # if rest > 0:
         #     for _ in range(rest):
-        #         species = self._species[np.random.randint(len(self._species))]
+        #         ns = len(self._species)
+        #         species = self._species[np.random.randint(ns) if ns > 1 else 0]
         #         children.append(species.make_child())
-
+        #
         # for child in children:
         #     self.add_species(child)
-
-        rest = self._population - self._total_networks()
-        if rest > 0:
-            for _ in range(rest):
-                ns = len(self._species)
-                species = self._species[np.random.randint(ns) if ns > 1 else 0]
-                species.add_network(species.make_child())
-
-        self._respeciate()
-
-        print(self._total_networks(), list(map(Species.num_networks, self._species)))
-
-        #print(self._population, len(children), rest, list(map(Species.num_networks, self._species)))
+        #
+        #print(self._total_networks(), list(map(Species.num_networks, self._species)))
 
         self._current_network = 0
         self._generation += 1
-
 
         self.save(self._save_path)
 
@@ -268,6 +294,7 @@ class Neat:
             self._next()
 
         self._network_cache.generate()
+        #self._network_cache.to_string()
 
     def generation(self):
         return self._generation

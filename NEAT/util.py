@@ -21,7 +21,7 @@ def disjoints(genes1, genes2):
         s2.add(gene.innovation())
 
     n = max(len(genes1), len(genes2))
-    if n < 10:
+    if n < 20:
         n = 1
 
     return len(s1 ^ s2) / n
